@@ -1,0 +1,42 @@
+##Polygons=vector
+##Field_name=string maxDistCen
+
+from PyQt4.QtCore import QVariant
+from qgis.core import *
+from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
+
+input_features = processing.getObject(Polygons)
+provider = input_features.dataProvider()
+fieldName = Field_name
+
+if len(fieldName) > 10: raise GeoAlgorithmExecutionException('Field name length should be 10 or less')
+
+field = QgsField(fieldName, QVariant.Double)
+if provider.fieldNameIndex(fieldName)==-1:
+    provider.addAttributes([field])
+
+attrIndex = provider.fieldNameIndex(fieldName)
+
+n = input_features.featureCount()+0.0
+features = input_features.getFeatures()
+input_features.startEditing()
+pos = 0
+
+
+for feat in features:
+    geom = feat.geometry()
+    centroid = geom.centroid().asPoint()
+    points = []
+    i = 0
+    point = geom.vertexAt(i)
+    while not point==QgsPoint():
+        points.append(point)
+        i += 1
+        point = geom.vertexAt(i)
+        if len(points) > 0:
+            maxDist = max([centroid.sqrDist(x) for x in points])
+    out = input_features.changeAttributeValue(feat.id(), attrIndex, maxDist)
+    pos += 1
+    progress.setPercentage(int(100*pos/n))
+    
+input_features.commitChanges()
